@@ -20,6 +20,7 @@ function svg(tag, attrs, text) {
 }
 function status(text) {
   $('status').textContent = text;
+  $('task-status').textContent = text;
 }
 function invalidate() {
   revision++;
@@ -28,7 +29,8 @@ function invalidate() {
   result = null;
   $('run').disabled = false;
   $('results').hidden = true;
-  status('Task fleet changed. Run again to update the evidence.');
+  status('Tasks changed. Run schedules to update.');
+  for (const id of ['export', 'analysis-open']) $(id).disabled = true;
 }
 function taskEditor() {
   const fragment = document.createDocumentFragment();
@@ -81,22 +83,26 @@ function download(name, text, type = 'application/json') {
 function inspect(id) {
   const j = result[policy].jobs[id];
   $('inspector').textContent =
-    `${j.name} / job ${j.number} · released ${j.release} · deadline ${j.deadline} · first ran ${j.firstStart ?? 'not yet'} · completed ${j.completion ?? 'unfinished'} · response ${j.response ?? 'pending'} · remaining ${j.remaining} ticks · ${j.status}`;
+    `${policy.toUpperCase()} · ${j.name} / job ${j.number} · released ${j.release} · deadline ${j.deadline} · first ran ${j.firstStart ?? 'not yet'} · completed ${j.completion ?? 'unfinished'} · response ${j.response ?? 'pending'} · remaining ${j.remaining} ticks · ${j.status}`;
 }
 function timeline() {
   if (!result) return;
-  const run = result[policy],
+  drawTimeline('edf');
+  drawTimeline('rm');
+}
+function drawTimeline(which) {
+  const canvas = $(which === 'edf' ? 'timeline' : 'timeline-rm');
+  const run = result[which],
     windowSize = Math.min(Number($('window').value), run.horizon),
     max = run.horizon - windowSize;
   $('start').max = max;
   $('start').value = Math.min(Number($('start').value), max);
   const start = Number($('start').value),
     end = start + windowSize,
-    unit = 22,
+    unit = Math.max(16, (canvas.parentElement.clientWidth - 125) / windowSize),
     left = 105,
     width = left + windowSize * unit + 20,
     height = 60 + scenario.tasks.length * 48;
-  const canvas = $('timeline');
   canvas.setAttribute('width', width);
   canvas.setAttribute('height', height);
   canvas.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -134,11 +140,17 @@ function timeline() {
         `${j.name} #${j.number}: ${s.start}–${s.end}, deadline ${j.deadline}, ${j.status}`,
       ),
     );
-    rect.addEventListener('click', () => inspect(j.id));
+    const selectJob = () => {
+      policy = which;
+      for (const key of ['edf', 'rm']) $(key).setAttribute('aria-pressed', key === policy);
+      ledger();
+      inspect(j.id);
+    };
+    rect.addEventListener('click', selectJob);
     rect.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        inspect(j.id);
+        selectJob();
       }
     });
     fragment.append(rect);
@@ -203,16 +215,26 @@ function render() {
   for (const key of ['edf', 'rm']) {
     const run = result[key],
       card = el('article', undefined, 'card');
-    card.append(el('h3', key === 'edf' ? 'EARLIEST DEADLINE FIRST' : 'RATE MONOTONIC'));
+    const summary = el('div', undefined, 'policy-summary');
+    summary.append(el('h3', key === 'edf' ? 'Earliest deadline first' : 'Rate monotonic'));
+    card.dataset.missed = run.misses > 0;
     const metric = el('div', String(run.misses), 'metric');
     metric.append(el('small', 'missed deadlines'));
-    card.append(
+    summary.append(
       metric,
       el(
         'p',
         `${run.completed} completed / ${run.jobs.length} released · ${run.due} due within preview\n${run.preemptions} preemptions · ${run.idle} idle ticks`,
       ),
     );
+    const chart = el('div', undefined, 'scroll chart'),
+      canvas = svg('svg', {
+        id: key === 'edf' ? 'timeline' : 'timeline-rm',
+        role: 'group',
+        'aria-label': key.toUpperCase() + ' task execution timeline',
+      });
+    chart.append(canvas);
+    card.append(summary, chart);
     comparison.append(card);
   }
   $('comparison').replaceChildren(comparison);
@@ -266,6 +288,7 @@ function render() {
   );
   $('assumptions').textContent = a.assumptions;
   $('results').hidden = false;
+  for (const id of ['export', 'analysis-open']) $(id).disabled = false;
   switchPolicy(policy);
 }
 function run(candidate = scenario) {
@@ -281,6 +304,7 @@ function run(candidate = scenario) {
     worker = null;
     $('run').disabled = false;
     if (data.error) {
+      closeTasksAfterRun = false;
       status(data.error);
       return;
     }
@@ -289,15 +313,18 @@ function run(candidate = scenario) {
     taskEditor();
     $('start').value = 0;
     render();
-    status(
-      `Compared ${scenario.horizon} ticks. The preview and all-time model checks are shown separately.`,
-    );
+    if (closeTasksAfterRun) {
+      $('tasks-panel').close();
+      closeTasksAfterRun = false;
+    }
+    status(`${scenario.tasks.length} tasks · ${scenario.horizon} ticks · one processor`);
   };
   current.onerror = () => {
     if (ticket !== revision) return;
     current.terminate();
     worker = null;
     $('run').disabled = false;
+    closeTasksAfterRun = false;
     status('The scheduling worker failed. Try again.');
   };
   current.postMessage(candidate);
@@ -319,7 +346,11 @@ $('example').addEventListener('change', () => {
   taskEditor();
   run();
 });
-$('run').addEventListener('click', () => run());
+let closeTasksAfterRun = false;
+$('run').addEventListener('click', () => {
+  closeTasksAfterRun = true;
+  run();
+});
 for (const key of ['edf', 'rm']) $(key).addEventListener('click', () => switchPolicy(key));
 $('window').addEventListener('change', timeline);
 $('start').addEventListener('input', timeline);
@@ -350,5 +381,15 @@ $('import').addEventListener('change', async () => {
     $('import').value = '';
   }
 });
+for (const [button, panel] of [
+  ['tasks-open', 'tasks-panel'],
+  ['analysis-open', 'analysis-panel'],
+])
+  $(button).onclick = () => $(panel).showModal();
+for (const b of document.querySelectorAll('[data-close]'))
+  b.onclick = () => $(b.dataset.close).close();
+new ResizeObserver(() => {
+  if (result) timeline();
+}).observe($('comparison'));
 taskEditor();
 run();

@@ -1,6 +1,6 @@
 # Deadline Harbor
 
-A real-time scheduling workbench for periodic workloads on one preemptive processor. Edit a task fleet, compare earliest-deadline-first (EDF) with rate-monotonic (RM) scheduling, inspect execution timelines, and distinguish a finite preview from schedulability analysis.
+A real-time scheduling workbench for periodic workloads on one preemptive processor. Edit periodic tasks, compare earliest-deadline-first (EDF) with rate-monotonic (RM) scheduling, inspect execution timelines, and distinguish a finite preview from schedulability analysis.
 
 ![Scheduling workbench](docs/workbench.png)
 
@@ -13,6 +13,10 @@ python run.py
 ```
 
 Open http://127.0.0.1:8000. Computation runs in a browser worker. The Python server serves only the app's static assets on loopback, and documents never leave the browser.
+
+## Interface
+
+EDF and RM execution timelines appear together with a shared time window. Select a bar in either timeline to inspect that policy’s job. Task editing opens in a dialog; schedulability proofs, response-time iterations, and the filtered job ledger are available under Analysis. The charts resize with the window and scroll horizontally on narrow screens to keep tick labels readable.
 
 ## Workflows
 

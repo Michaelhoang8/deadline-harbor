@@ -7,29 +7,57 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <aside>
-      <a class="brand" href="#"
-        >dh<span>Deadline<br />Harbor</span></a
-      >
-      <p>REAL-TIME SYSTEMS</p>
+    <header>
+      <h1>Deadline Harbor</h1>
       <nav>
-        <a href="#fleet">01 / Task fleet</a><a href="#schedule">02 / Schedule</a
-        ><a href="#analysis">03 / Evidence</a>
+        <label class="file">Import<input id="import" type="file" accept=".json" /></label
+        ><button id="export">Save scenario</button
+        ><button id="analysis-open" aria-haspopup="dialog">Analysis</button
+        ><button id="tasks-open" class="primary" aria-haspopup="dialog">Edit tasks</button>
       </nav>
-      <small>One processor.<br />Every tick accounted for.</small>
-    </aside>
+    </header>
     <main>
-      <header>
+      <div class="schedule-toolbar">
         <div>
-          <p class="eyebrow">SCHEDULING OBSERVATORY</p>
-          <h1>Make time for every task.</h1>
-          <p class="subtitle">See which jobs arrive, which run, and which miss the tide.</p>
+          <h2>Execution schedules</h2>
+          <p id="status" role="status" aria-live="polite"></p>
         </div>
-        <label class="file">Import scenario<input id="import" type="file" accept=".json" /></label>
-      </header>
+        <label
+          >Visible window
+          <select id="window">
+            <option>30</option>
+            <option>60</option>
+            <option>120</option>
+          </select>
+          ticks</label
+        >
+      </div>
+      <div id="results" hidden>
+        <section id="schedule">
+          <div class="schedule-key">
+            <div id="legend" class="legend"></div>
+            <span>Bars: execution · Diamonds: deadlines</span>
+          </div>
+          <div id="comparison" class="comparison"></div>
+          <div class="window-controls">
+            <label class="scrubber"
+              >Window start <input id="start" type="range" min="0" max="0" value="0" /><output
+                id="range"
+              ></output
+            ></label>
+          </div>
+          <div id="inspector" class="inspector">Select an execution bar to inspect its job.</div>
+        </section>
+      </div>
+    </main>
+    <dialog id="tasks-panel" aria-labelledby="tasks-title">
+      <div class="dialog-heading">
+        <h2 id="tasks-title">Task configuration</h2>
+        <button data-close="tasks-panel" aria-label="Close tasks">×</button>
+      </div>
       <section id="fleet">
         <div class="heading">
-          <h2>Task fleet</h2>
+          <h2>Tasks</h2>
           <label
             >Load example
             <select id="example">
@@ -59,102 +87,69 @@
           ><label
             >Simulate
             <input id="horizon" type="number" min="1" max="2000" value="30" /> ticks</label
-          ><button id="run" class="primary">Run both schedulers →</button>
+          ><button id="run" class="primary">Run schedules</button>
         </div>
         <p class="hint">
           Integer ticks · execution ≤ deadline ≤ period · missed jobs continue running
         </p>
       </section>
-      <p id="status" role="status" aria-live="polite"></p>
-      <div id="results" hidden>
-        <section id="schedule">
-          <div class="heading">
-            <h2>The schedule</h2>
-            <button id="export">Save scenario</button>
-          </div>
-          <div id="comparison" class="comparison"></div>
-          <div class="heading">
-            <div class="tabs" role="group" aria-label="Timeline policy">
-              <button id="edf" aria-pressed="true">Earliest deadline first</button
-              ><button id="rm" aria-pressed="false">Rate monotonic</button>
-            </div>
-            <label
-              >Window
-              <select id="window">
-                <option>30</option>
-                <option>60</option>
-                <option>120</option>
-              </select>
-              ticks</label
-            >
-          </div>
-          <div id="legend" class="legend"></div>
-          <div class="scroll chart">
-            <svg id="timeline" role="group" aria-label="Task execution timeline"></svg>
-          </div>
-          <div class="actions">
-            <label class="scrubber"
-              >Window start <input id="start" type="range" min="0" max="0" value="0" /><output
-                id="range"
-              ></output></label
-            ><span class="hint"
-              >Bars: execution · diamonds: deadlines · select a bar to inspect</span
-            >
-          </div>
-          <div id="inspector" class="inspector">Select an execution bar to inspect its job.</div>
-          <details>
-            <summary>Job ledger</summary>
-            <div class="heading">
-              <label
-                >Show
-                <select id="filter">
-                  <option value="all">All jobs</option>
-                  <option value="missed">Missed deadlines</option>
-                  <option value="pending">Unfinished jobs</option>
-                </select></label
-              ><button id="csv">Download all jobs CSV</button>
-            </div>
-            <p id="ledger-count" class="hint"></p>
-            <div class="scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Task / job</th>
-                    <th>Release</th>
-                    <th>Deadline</th>
-                    <th>Finish</th>
-                    <th>Response</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody id="ledger"></tbody>
-              </table>
-            </div>
-          </details>
-        </section>
-        <section id="analysis">
-          <div class="heading">
-            <h2>Beyond the preview</h2>
-            <button id="report">Download analysis JSON</button>
-          </div>
-          <p class="hint">
-            A finite simulation is evidence, not an all-time guarantee. These separate analyses
-            check the scheduling model.
-          </p>
-          <div id="proofs" class="proofs"></div>
-          <details>
-            <summary>Response-time iterations & model assumptions</summary>
-            <div id="iterations"></div>
-            <p id="assumptions" class="hint"></p>
-          </details>
-        </section>
+      <p id="task-status" role="status"></p>
+    </dialog>
+    <dialog id="analysis-panel" aria-labelledby="analysis-title">
+      <div class="dialog-heading">
+        <h2 id="analysis-title">Schedule analysis</h2>
+        <button data-close="analysis-panel" aria-label="Close analysis">×</button>
       </div>
-      <footer>
-        LOCAL COMPUTATION / NO ACCOUNTS / NO UPLOADS<span
-          >Deadline Harbor · real-time scheduling lab</span
-        >
-      </footer>
-    </main>
+      <section id="analysis">
+        <div class="heading">
+          <h2>Schedulability</h2>
+          <button id="report">Download analysis JSON</button>
+        </div>
+        <p class="hint">
+          A finite simulation is evidence, not an all-time guarantee. These separate analyses check
+          the scheduling model.
+        </p>
+        <div id="proofs" class="proofs"></div>
+        <details>
+          <summary>Response-time iterations & model assumptions</summary>
+          <div id="iterations"></div>
+          <p id="assumptions" class="hint"></p>
+        </details>
+      </section>
+      <details>
+        <summary>Job ledger</summary>
+        <div class="tabs" role="group" aria-label="Job ledger policy">
+          <button id="edf" aria-pressed="true">EDF</button
+          ><button id="rm" aria-pressed="false">Rate monotonic</button>
+        </div>
+        <div class="heading">
+          <label
+            >Show
+            <select id="filter">
+              <option value="all">All jobs</option>
+              <option value="missed">Missed deadlines</option>
+              <option value="pending">Unfinished jobs</option>
+            </select></label
+          ><button id="csv">Download all jobs CSV</button>
+        </div>
+        <p id="ledger-count" class="hint"></p>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Task / job</th>
+                <th>Release</th>
+                <th>Deadline</th>
+                <th>Finish</th>
+                <th>Response</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="ledger"></tbody>
+          </table>
+        </div>
+      </details>
+    </dialog>
     <script type="module" src="app.js"></script>
   </body>
 </html>
